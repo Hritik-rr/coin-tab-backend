@@ -1,13 +1,22 @@
+import { IsEmail } from 'class-validator';
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
-@Entity()
+@Entity('users')
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column()
+  @Column({ unique: true })
+  @Column({ nullable: true })
+  firebaseUid: string;
+
+  @Column({ nullable: true })
+  name: string;
+
+  @Column({ unique: true, nullable: true })
+  @IsEmail({}, { message: 'Invalid email address' })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   password: string;
 }
