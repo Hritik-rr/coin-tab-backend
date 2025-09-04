@@ -3,6 +3,7 @@ import { User } from './entity/user.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SignUpUserDto } from './dto/sign-up-user.dto';
+import { SignInUserDto } from './dto/sign-in.dto';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { AuthController } from 'src/auth/auth.controller';
 
@@ -60,6 +61,44 @@ export class UserService {
     } catch (error) {
       console.error('Error creating user:', error.message, error.stack);
       throw new Error(`Error creating new user: ${error.message}`);
+    }
+  }
+
+  async userSignIn({ email, password }: SignInUserDto): Promise<{
+    message: string;
+    userData: User;
+    tokenData: {
+      idToken: string;
+      refreshToken: string;
+      expiresIn: string;
+    };
+  }> {
+    try {
+      const user = await this.userRepository.findOneBy({ email });
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const idToken = await this.authController.mockLogin(email, password);
+
+      return {
+        message: 'User signed in successfully',
+        userData: user,
+        tokenData: idToken,
+      };
+    } catch (error) {
+      console.error('Error signing in user:', error.message, error.stack);
+      throw new Error(`Error signing in user: ${error.message}`);
+    }
+  }
+
+  async userSignOut(uid: string): Promise<{ message: string }> {
+    try {
+      await this.firebaseService.auth.revokeRefreshTokens(uid);
+      return { message: 'User signed out successfully' };
+    } catch (error) {
+      console.error('Error signing out user:', error.message, error.stack);
+      throw new Error(`Error signing out user: ${error.message}`);
     }
   }
 
