@@ -13,25 +13,32 @@ export class AuthController {
   constructor(private readonly firebaseService: FirebaseService) {}
 
   @Get('mock-login')
-  async mockLogin(@Query('uid') uid: string) {
-    const customToken = await this.firebaseService.auth.createCustomToken(
-      uid || 'test-user-123',
-    );
-    // Exchange custom token for ID token via Firebase REST API using Axios
-    const apiKey = process.env.FIREBASE_WEB_API_KEY; // from your Firebase project settings
-    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${apiKey}`;
+  async mockLogin(
+    @Query('email') email: string,
+    @Query('password') password: string,
+  ) {
+    try {
+      // Use signInWithPassword endpoint for login
+      const apiKey = process.env.FIREBASE_WEB_API_KEY; // from your Firebase project settings
+      const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`;
 
-    const res = await axios.post(url, {
-      token: customToken,
-      returnSecureToken: true,
-    });
-    // idToken is the Firebase ID token (JWT)
-    const idToken = res.data.idToken; // this is what verifyIdToken() expects
-    // console.log('idToken', idToken);
-    return {
-      idToken: res.data.idToken,
-      refreshToken: res.data.refreshToken,
-      expiresIn: res.data.expiresIn,
-    };
+      const res = await axios.post(url, {
+        email: email,
+        password: password,
+        returnSecureToken: true,
+      });
+      // idToken is the Firebase ID token (JWT)
+      return {
+        idToken: res.data.idToken,
+        refreshToken: res.data.refreshToken,
+        expiresIn: res.data.expiresIn,
+      };
+    } catch (error) {
+      console.error(
+        'Firebase signIn error:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
   }
 }
