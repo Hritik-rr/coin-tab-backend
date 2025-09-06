@@ -19,4 +19,10 @@ export class User {
 
   @Column({ nullable: true })
   password: string;
+
+  @Column({ default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lockUntil: Date | null;
 }

@@ -1,28 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { User } from './entity/user.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { SignUpUserDto } from './dto/sign-up-user.dto';
 import { SignInUserDto } from './dto/sign-in.dto';
 import { FirebaseService } from 'src/firebase/firebase.service';
-import { AuthController } from 'src/auth/auth.controller';
+import { AuthService } from 'src/auth/auth.service';
+import { MockLoginResponse } from 'src/auth/auth.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly firebaseService: FirebaseService,
-    private readonly authController: AuthController,
+    private readonly authService: AuthService,
   ) {}
 
   async userSignUp({ name, email, password }: SignUpUserDto): Promise<{
     message: string;
     userData: User;
-    tokenData: {
-      idToken: string;
-      refreshToken: string;
-      expiresIn: string;
-    };
+    tokenData: MockLoginResponse;
   }> {
     try {
       const existingUser = await this.userRepository.findOneBy({
@@ -42,10 +39,10 @@ export class UserService {
       const uid = firebaseNewUser.uid;
 
       // invoking the function mockLogin from auth.controller to get the idToken
-      const idToken = await this.authController.mockLogin(email, password);
+      const idToken = await this.authService.mockLogin({ email, password });
 
       // Creating a new user in the database
-      const newUser = await this.userRepository.create({
+      const newUser = this.userRepository.create({
         firebaseUid: uid,
         email: email,
         name: name,
@@ -56,7 +53,7 @@ export class UserService {
       return {
         message: 'User created successfully',
         userData: newUserCheck,
-        tokenData: idToken,
+        tokenData: idToken as MockLoginResponse,
       };
     } catch (error) {
       console.error('Error creating user:', error.message, error.stack);
@@ -67,29 +64,39 @@ export class UserService {
   async userSignIn({ email, password }: SignInUserDto): Promise<{
     message: string;
     userData: User;
-    tokenData: {
-      idToken: string;
-      refreshToken: string;
-      expiresIn: string;
-    };
+    tokenData: MockLoginResponse;
   }> {
-    try {
-      const user = await this.userRepository.findOneBy({ email });
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      const idToken = await this.authController.mockLogin(email, password);
-
-      return {
-        message: 'User signed in successfully',
-        userData: user,
-        tokenData: idToken,
-      };
-    } catch (error) {
-      console.error('Error signing in user:', error.message, error.stack);
-      throw new Error(`Error signing in user: ${error.message}`);
+    const user = await this.userRepository.findOneBy({ email });
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials.');
     }
+
+    if (user.lockUntil && new Date() < user.lockUntil) {
+      throw new UnauthorizedException('Account locked. Try again later.');
+    }
+
+    let idToken: any;
+    try {
+      idToken = await this.authService.mockLogin({ email, password });
+    } catch (err) {
+      user.failedLoginAttempts += 1;
+      if (user.failedLoginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      }
+      await this.userRepository.save(user);
+      throw new UnauthorizedException('Invalid credentials.');
+    }
+
+    // Successful login
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await this.userRepository.save(user);
+
+    return {
+      message: 'User signed in successfully',
+      userData: user,
+      tokenData: idToken as MockLoginResponse,
+    };
   }
 
   async userSignOut(uid: string): Promise<{ message: string }> {
