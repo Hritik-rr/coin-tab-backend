@@ -167,7 +167,7 @@ This is useful for local development or testing flows without a full frontend Fi
 
 ## Frontend
 
-See the [frontend repo](https://github.com/your-org/frontend-coin-tab) for setup and usage instructions.
+See the [frontend repo](https://github.com/Hritik-rr/coin-tab-frontend) for setup and usage instructions.
 
 ---
 ## License
