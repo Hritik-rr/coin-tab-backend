@@ -1,13 +1,28 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { IsEmail } from 'class-validator';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity()
+@Entity('user')
 export class User {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  @Column()
+  @Column({ unique: true })
+  @Column({ nullable: true })
+  firebaseUid: string;
+
+  @Column({ nullable: true })
+  name: string;
+
+  @Column({ unique: true, nullable: true })
+  @IsEmail({}, { message: 'Invalid email address' })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   password: string;
+
+  @Column({ default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lockUntil: Date | null;
 }

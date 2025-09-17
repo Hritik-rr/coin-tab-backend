@@ -2,11 +2,17 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { User } from './user/entity/user.entity';
 import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
+import { FirebaseModule } from './firebase/firebase.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -19,6 +25,8 @@ import { UserModule } from './user/user.module';
       logging: false,
     }),
     UserModule,
+    AuthModule,
+    FirebaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
